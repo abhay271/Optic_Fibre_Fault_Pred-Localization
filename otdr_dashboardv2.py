@@ -1366,53 +1366,47 @@ with col2:
                     else:
                         st.metric("Loss", "N/A", "Model not loaded")
                 
-                # Fault location visualization on OTDR trace
+                # New: OTDR Trace with Predicted Fault Position
                 if hasattr(st.session_state, 'otdr_trace') and st.session_state.otdr_trace is not None and 'position' in preds:
-                    st.subheader("🎯 Fault Localization on OTDR Trace")
-                    
+                    positions = list(range(1, 31))
+                    values = list(st.session_state.otdr_trace)
+
+                    # Map prediction to position per spec: position_index = int(prediction * 100)
+                    raw_prediction = float(preds['position']['value'])
+                    position_index = int(raw_prediction * 100)
+                    # Clamp to valid range p1..p30
+                    fault_pos_x = max(1, min(30, position_index))
+                    fault_y = values[fault_pos_x - 1]
+
                     fig = go.Figure()
-                    
-                    # Plot OTDR trace
                     fig.add_trace(go.Scatter(
-                        x=list(range(1, 31)),
-                        y=st.session_state.otdr_trace,
+                        x=positions,
+                        y=values,
                         mode='lines+markers',
                         name='OTDR Trace',
-                        line=dict(color='blue', width=2),
-                        marker=dict(size=4)
+                        line=dict(color='#1f77b4', width=2),
+                        marker=dict(size=5)
                     ))
-                    
-                    # Mark predicted fault position
-                    fault_idx = int(preds['position']['value'] * 29)  # Convert to trace index (0-29)
-                    if 0 <= fault_idx < 30:
-                        fig.add_trace(go.Scatter(
-                            x=[fault_idx + 1],
-                            y=[st.session_state.otdr_trace[fault_idx]],
-                            mode='markers',
-                            name=f'Predicted Fault Location',
-                            marker=dict(color='red', size=15, symbol='diamond')
-                        ))
-                    
-                    # Add actual fault position if available
-                    if hasattr(st.session_state, 'input_data') and st.session_state.input_data is not None and 'Position' in st.session_state.input_data:
-                        actual_pos = st.session_state.input_data['Position']
-                        actual_idx = int(actual_pos * 29)
-                        if 0 <= actual_idx < 30:
-                            fig.add_trace(go.Scatter(
-                                x=[actual_idx + 1],
-                                y=[st.session_state.otdr_trace[actual_idx]],
-                                mode='markers',
-                                name=f'Actual Fault Location',
-                                marker=dict(color='green', size=15, symbol='star')
-                            ))
-                    
+
+                    # Highlight predicted fault position
+                    fig.add_trace(go.Scatter(
+                        x=[fault_pos_x],
+                        y=[fault_y],
+                        mode='markers+text',
+                        name='Predicted Fault',
+                        marker=dict(color='red', size=14, symbol='diamond'),
+                        text=["Fault Here"],
+                        textposition="top center"
+                    ))
+
                     fig.update_layout(
-                        title="OTDR Trace with Fault Localization",
-                        xaxis_title="Position Index (P1-P30)",
-                        yaxis_title="Normalized Power",
-                        height=400
+                        title="OTDR Trace with Predicted Fault Position",
+                        xaxis_title="Position",
+                        yaxis_title="Value",
+                        height=400,
+                        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
                     )
-                    
+
                     st.plotly_chart(fig, use_container_width=True)
 
                 # QoL: Quick download of predictions (CSV)
