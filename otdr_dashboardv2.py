@@ -683,175 +683,111 @@ def check_model_requirements():
     }
     return models_status
 
+# Auto-load models from local directory
+def auto_load_local_models(base_dir: str = "models"):
+    """Automatically load scaler and models from a fixed local directory.
+    If a file is missing or loading fails, show an error and continue.
+    """
+    def resolve_path(filename: str) -> str:
+        # Prefer base_dir/filename; fall back to current working directory
+        path_in_dir = os.path.join(base_dir, filename) if base_dir else filename
+        if os.path.exists(path_in_dir):
+            return path_in_dir
+        if os.path.exists(filename):
+            return filename
+        return path_in_dir  # default to base_dir path for error message
+
+    # Scaler
+    if st.session_state.scaler is None:
+        scaler_path = resolve_path("scaler.pkl")
+        try:
+            if os.path.exists(scaler_path):
+                with open(scaler_path, "rb") as f:
+                    st.session_state.scaler = pickle.load(f)
+                st.sidebar.success("✅ Feature scaler loaded from local directory")
+            else:
+                st.sidebar.error("Error: Required scaler file 'scaler.pkl' not found in the local directory.")
+        except Exception as e:
+            st.sidebar.error(f"Error loading scaler from '{scaler_path}': {e}")
+
+    # Binary model (Keras)
+    if st.session_state.loaded_models.get('binary') is None:
+        binary_path = resolve_path("binary_model.h5")
+        try:
+            if os.path.exists(binary_path):
+                model = tf.keras.models.load_model(binary_path, compile=False)
+                st.session_state.loaded_models['binary'] = model
+                st.session_state.binary_model = model
+                st.sidebar.success("✅ Binary model loaded from local directory")
+            else:
+                st.sidebar.error("Error: Required model file 'binary_model.h5' not found in the local directory.")
+        except Exception as e:
+            st.sidebar.error(f"Error loading binary model from '{binary_path}': {e}")
+
+    # Class model (Keras)
+    if st.session_state.loaded_models.get('class') is None:
+        class_path = resolve_path("multiclass_model.h5")
+        try:
+            if os.path.exists(class_path):
+                model = tf.keras.models.load_model(class_path, compile=False)
+                st.session_state.loaded_models['class'] = model
+                st.sidebar.success("✅ Class model loaded from local directory")
+            else:
+                st.sidebar.error("Error: Required model file 'multiclass_model.h5' not found in the local directory.")
+        except Exception as e:
+            st.sidebar.error(f"Error loading class model from '{class_path}': {e}")
+
+    # Position model (pickle)
+    if st.session_state.loaded_models.get('position') is None:
+        position_path = resolve_path("position_model.pkl")
+        try:
+            if os.path.exists(position_path):
+                with open(position_path, "rb") as f:
+                    model = pickle.load(f)
+                st.session_state.loaded_models['position'] = model
+                st.sidebar.success("✅ Position model loaded from local directory")
+            else:
+                st.sidebar.error("Error: Required model file 'position_model.pkl' not found in the local directory.")
+        except Exception as e:
+            st.sidebar.error(f"Error loading position model from '{position_path}': {e}")
+
+    # Reflectance model (pickle)
+    if st.session_state.loaded_models.get('reflectance') is None:
+        refl_path = resolve_path("reflectance_model.pkl")
+        try:
+            if os.path.exists(refl_path):
+                with open(refl_path, "rb") as f:
+                    model = pickle.load(f)
+                st.session_state.loaded_models['reflectance'] = model
+                st.sidebar.success("✅ Reflectance model loaded from local directory")
+            else:
+                st.sidebar.error("Error: Required model file 'reflectance_model.pkl' not found in the local directory.")
+        except Exception as e:
+            st.sidebar.error(f"Error loading reflectance model from '{refl_path}': {e}")
+
+    # Loss model (pickle)
+    if st.session_state.loaded_models.get('loss') is None:
+        loss_path = resolve_path("loss_model.pkl")
+        try:
+            if os.path.exists(loss_path):
+                with open(loss_path, "rb") as f:
+                    model = pickle.load(f)
+                st.session_state.loaded_models['loss'] = model
+                st.sidebar.success("✅ Loss model loaded from local directory")
+            else:
+                st.sidebar.error("Error: Required model file 'loss_model.pkl' not found in the local directory.")
+        except Exception as e:
+            st.sidebar.error(f"Error loading loss model from '{loss_path}': {e}")
+
 # Header
 st.markdown('<h1 class="main-header">🔍 OTDR-Based Fiber Fault Detection & Localization</h1>', unsafe_allow_html=True)
 
 # Add compatibility warning
 st.markdown('<div class="info-box">ℹ️ <strong>TensorFlow Compatibility Note:</strong> If you encounter model loading errors with Keras (.h5) files, ensure your models are compatible with TensorFlow 2.15+. For older models with "batch_shape" issues, the system will attempt automatic fixes. If problems persist, consider re-saving your models with the current TensorFlow version.</div>', unsafe_allow_html=True)
 
-# Sidebar for model loading and configuration
 st.sidebar.header("🔧 Model Configuration")
-
-# Model file uploaders
-st.sidebar.subheader("Load Pre-trained Models")
-
-# StandardScaler uploader
-scaler_file = st.sidebar.file_uploader(
-    "Feature Scaler (Required for normalized predictions)", 
-    type=['pkl', 'joblib'], 
-    key="scaler_uploader",
-    help="Upload the StandardScaler used during training for feature normalization"
-)
-
-# Load scaler if uploaded
-if scaler_file is not None and st.session_state.scaler is None:
-    with st.spinner("Loading feature scaler..."):
-        try:
-            scaler_file.seek(0)
-            scaler = joblib.load(scaler_file)
-            st.session_state.scaler = scaler
-            st.sidebar.success("✅ Feature scaler loaded successfully!")
-            st.sidebar.info("ℹ️ Data will be normalized using this scaler for predictions")
-        except Exception as e1:
-            try:
-                scaler_file.seek(0)
-                scaler = pickle.load(scaler_file)
-                st.session_state.scaler = scaler
-                st.sidebar.success("✅ Feature scaler loaded successfully!")
-                st.sidebar.info("ℹ️ Data will be normalized using this scaler for predictions")
-            except Exception as e2:
-                st.sidebar.error(f"❌ Failed to load scaler: {str(e1)}, {str(e2)}")
-
-# Binary model uploader
-binary_model_file = st.sidebar.file_uploader(
-    "Binary Classification Model (Required)", 
-    type=['pkl', 'joblib', 'h5'], 
-    key="binary",
-    help="Upload a trained model for binary fault detection"
-)
-
-# Load binary model if uploaded
-if binary_model_file is not None and st.session_state.loaded_models['binary'] is None:
-    with st.spinner("Loading binary classification model..."):
-        st.session_state.loaded_models['binary'] = load_model_safe(binary_model_file, 'binary')
-        if st.session_state.loaded_models['binary'] is not None:
-            # Store reference for easier access
-            st.session_state.binary_model = st.session_state.loaded_models['binary']
-            
-            # Validate model input structure
-            model = st.session_state.loaded_models['binary']
-            try:
-                # Check for hierarchical inputs (OTDR_trace, SNR)
-                has_hierarchical_inputs = False
-                if hasattr(model, 'input_names') and len(model.input_names) > 1:
-                    has_hierarchical_inputs = True
-                    input_names = model.input_names
-                    st.sidebar.success("✅ Hierarchical binary model loaded successfully!")
-                    st.sidebar.info(f"ℹ️ Model inputs: {', '.join(input_names)}")
-                elif hasattr(model, 'inputs') and len(model.inputs) > 1:
-                    has_hierarchical_inputs = True
-                    st.sidebar.success("✅ Hierarchical binary model loaded successfully!")
-                    st.sidebar.info("ℹ️ Model has multiple inputs (likely OTDR_trace + SNR)")
-                elif hasattr(model, 'input_shape'):
-                    input_shape = model.input_shape
-                    expected_features = input_shape[-1] if input_shape else None
-                    if expected_features == 31:
-                        st.sidebar.success("✅ Binary model loaded successfully! (31 features: SNR + P1-P30)")
-                    elif expected_features == 30:
-                        st.sidebar.success("✅ Binary model loaded successfully! (30 features: P1-P30 only)")
-                        st.sidebar.info("ℹ️ Model expects 30 features (P1-P30). SNR will be handled separately.")
-                    else:
-                        st.sidebar.warning(f"⚠️ Binary model loaded but expects {expected_features} features. Expected 31 (SNR+P1-P30) or 30 (P1-P30).")
-                elif hasattr(model, 'n_features_in_'):
-                    expected_features = model.n_features_in_
-                    if expected_features == 31:
-                        st.sidebar.success("✅ Binary model loaded successfully! (31 features: SNR + P1-P30)")
-                    elif expected_features == 30:
-                        st.sidebar.success("✅ Binary model loaded successfully! (30 features: P1-P30 only)")
-                        st.sidebar.info("ℹ️ Model expects 30 features (P1-P30). SNR will be excluded from input.")
-                    else:
-                        st.sidebar.warning(f"⚠️ Binary model loaded but expects {expected_features} features. Expected 31 (SNR+P1-P30) or 30 (P1-P30).")
-                else:
-                    st.sidebar.success("✅ Binary model loaded successfully!")
-                    
-                # Show model architecture info if available
-                if hasattr(model, 'count_params'):
-                    param_count = model.count_params()
-                    st.sidebar.info(f"📊 Model parameters: {param_count:,}")
-                    
-            except Exception as e:
-                st.sidebar.success("✅ Binary model loaded successfully!")
-                st.sidebar.info("ℹ️ Could not determine model structure details")
-        else:
-            st.sidebar.error("❌ Failed to load binary model")
-
-# Class model uploader
-class_model_file = st.sidebar.file_uploader(
-    "Fault Class Detection Model", 
-    type=['pkl', 'joblib', 'h5'], 
-    key="class",
-    help="Upload a trained model for fault classification"
-)
-
-# Load class model if uploaded
-if class_model_file is not None and st.session_state.loaded_models['class'] is None:
-    with st.spinner("Loading fault classification model..."):
-        st.session_state.loaded_models['class'] = load_model_safe(class_model_file, 'class')
-        if st.session_state.loaded_models['class'] is not None:
-            st.sidebar.success("✅ Class model loaded successfully!")
-        else:
-            st.sidebar.error("❌ Failed to load class model")
-
-# Position model uploader
-position_model_file = st.sidebar.file_uploader(
-    "Position Localization Model", 
-    type=['pkl', 'joblib', 'h5'], 
-    key="position",
-    help="Upload a trained model for fault position localization"
-)
-
-# Load position model if uploaded
-if position_model_file is not None and st.session_state.loaded_models['position'] is None:
-    with st.spinner("Loading position model..."):
-        st.session_state.loaded_models['position'] = load_model_safe(position_model_file, 'position')
-        if st.session_state.loaded_models['position'] is not None:
-            st.sidebar.success("✅ Position model loaded successfully!")
-        else:
-            st.sidebar.error("❌ Failed to load position model")
-
-# Reflectance model uploader
-reflectance_model_file = st.sidebar.file_uploader(
-    "Reflectance Analysis Model", 
-    type=['pkl', 'joblib', 'h5'], 
-    key="reflectance",
-    help="Upload a trained model for reflectance analysis"
-)
-
-# Load reflectance model if uploaded
-if reflectance_model_file is not None and st.session_state.loaded_models['reflectance'] is None:
-    with st.spinner("Loading reflectance model..."):
-        st.session_state.loaded_models['reflectance'] = load_model_safe(reflectance_model_file, 'reflectance')
-        if st.session_state.loaded_models['reflectance'] is not None:
-            st.sidebar.success("✅ Reflectance model loaded successfully!")
-        else:
-            st.sidebar.error("❌ Failed to load reflectance model")
-
-# Loss model uploader
-loss_model_file = st.sidebar.file_uploader(
-    "Loss Analysis Model", 
-    type=['pkl', 'joblib', 'h5'], 
-    key="loss",
-    help="Upload a trained model for loss analysis"
-)
-
-# Load loss model if uploaded
-if loss_model_file is not None and st.session_state.loaded_models['loss'] is None:
-    with st.spinner("Loading loss model..."):
-        st.session_state.loaded_models['loss'] = load_model_safe(loss_model_file, 'loss')
-        if st.session_state.loaded_models['loss'] is not None:
-            st.sidebar.success("✅ Loss model loaded successfully!")
-        else:
-            st.sidebar.error("❌ Failed to load loss model")
+st.sidebar.subheader("Auto-loaded Models (Local)")
+auto_load_local_models(base_dir="models")
 
 # Model status indicators
 st.sidebar.subheader("📊 Model Status")
