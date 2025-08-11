@@ -843,6 +843,13 @@ if st.sidebar.button("🗑️ Clear All Models & Scaler"):
     st.sidebar.success("All models and scaler cleared!")
     st.rerun()
 
+# QoL: Clear only predictions without removing loaded models/scaler
+if st.sidebar.button("🧹 Clear Predictions Only"):
+    st.session_state.binary_prediction = None
+    st.session_state.detailed_predictions = None
+    st.sidebar.success("Predictions cleared!")
+    st.rerun()
+
 # Debug mode toggle
 debug_mode = st.sidebar.checkbox("🐛 Debug Mode", help="Show detailed processing information")
 
@@ -1227,6 +1234,14 @@ with col2:
                 st.markdown(f'<div class="error-box">🚨 <strong>FAULT DETECTED</strong><br>Confidence: {result["confidence"]:.3f}</div>', unsafe_allow_html=True)
             else:
                 st.markdown(f'<div class="success-box">✅ <strong>NO FAULT DETECTED</strong><br>Confidence: {result["confidence"]:.3f}</div>', unsafe_allow_html=True)
+
+            # QoL: Show binary prediction as a metric card
+            col_metric, _ = st.columns([1, 3])
+            with col_metric:
+                metric_label = "Binary Fault"
+                metric_value = "Fault Detected" if result['prediction'] else "No Fault"
+                metric_delta = f"Confidence: {result['confidence']:.3f}"
+                st.metric(metric_label, metric_value, metric_delta)
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -1399,6 +1414,41 @@ with col2:
                     )
                     
                     st.plotly_chart(fig, use_container_width=True)
+
+                # QoL: Quick download of predictions (CSV)
+                try:
+                    export_data = {
+                        'Timestamp': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+                        'SNR': [st.session_state.input_data['SNR']],
+                        'Binary_Prediction': [st.session_state.binary_prediction['prediction']],
+                        'Binary_Confidence': [st.session_state.binary_prediction['confidence']],
+                    }
+                    if 'class' in preds:
+                        export_data['Fault_Class'] = [preds['class']['value']]
+                        export_data['Fault_Name'] = [preds['class']['name']]
+                    if 'position' in preds:
+                        export_data['Position'] = [preds['position']['value']]
+                        export_data['Position_km'] = [preds['position'].get('distance_km', None)]
+                    if 'reflectance' in preds:
+                        export_data['Reflectance'] = [preds['reflectance']['value']]
+                    if 'loss' in preds:
+                        export_data['Loss'] = [preds['loss']['value']]
+
+                    # Add OTDR trace points
+                    if hasattr(st.session_state, 'otdr_trace') and st.session_state.otdr_trace is not None:
+                        for i, val in enumerate(st.session_state.otdr_trace):
+                            export_data[f'P{i+1}'] = [val]
+
+                    quick_export_df = pd.DataFrame(export_data)
+                    quick_csv = quick_export_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Quick Download Predictions (CSV)",
+                        data=quick_csv,
+                        file_name=f"otdr_quick_predictions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv"
+                    )
+                except Exception:
+                    pass
             
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1467,8 +1517,8 @@ if hasattr(st.session_state, 'detailed_predictions') and st.session_state.detail
                 })
             
             if comparison_data:
-                comparison_df = pd.DataFrame(comparison_data)
-                st.dataframe(comparison_df, use_container_width=True)
+                # Table display removed as requested
+                pass
             else:
                 st.info("No matching actual values available for comparison.")
         else:
