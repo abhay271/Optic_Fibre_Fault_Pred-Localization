@@ -1,164 +1,143 @@
-## OTDR Fiber Fault Detection & Localization Dashboard
+# 🔍 OTDR Fiber Fault Detection & Localization Dashboard
 
-An interactive Streamlit dashboard for OTDR-based fiber fault detection, classification, localization, and characterization (reflectance and loss). It loads your trained ML models and analyzes data with SNR and 30 OTDR trace points.
+Interactive Streamlit dashboard for detecting, localizing, and characterizing fiber faults from OTDR traces using pre-trained ML models. Designed with a modern dark theme, professional analysis views, and one-click exports.
 
----
+## ✨ Highlights
+- Auto-loads all required models and scaler from a local `models/` folder
+- Multiple data input modes: CSV upload, single-sample form, or auto-generated sample
+- Binary fault detection + detailed analysis (class, position, reflectance, loss)
+- Interactive Plotly charts, including predicted fault highlight and optional 3D view
+- Research-style report with actionable insights and recommended steps
+- Quick CSV export of predictions and results
 
-### Features
+## 📦 Repository Contents
+- `otdr_dashboardv2.py` – Streamlit app
+- `models/` – Place your pre-trained models here (see below)
+- `README.md` – You are here
 
-- Binary fault detection (Normal vs Fault)
-- Multi-class fault classification (0–7)
-- Fault position localization (normalized 0–1; optional km view)
-- Reflectance and loss estimation
-- Robust CSV ingestion with multiple fallback parsers
-- Debug mode and OTDR trace visualization
-- CSV export of analysis results
+## 🧠 Required Models (Auto-loaded)
+Place the following files in a local `models/` directory (relative to the project root):
 
----
+| Purpose | Filename | Type |
+|---|---|---|
+| Feature Scaler | `scaler.pkl` | Pickle (sklearn StandardScaler) |
+| Binary Classification | `binary_model.h5` | Keras/TensorFlow |
+| Fault Class Detection | `multiclass_model.h5` | Keras/TensorFlow |
+| Position Localization | `position_model.pkl` | Pickle |
+| Reflectance Analysis | `reflectance_model.pkl` | Pickle |
+| Loss Analysis | `loss_model.pkl` | Pickle |
 
-### Project Structure
+If any file is missing, the app will show a clear sidebar error (it won’t crash). You can still use parts of the pipeline that have their models available.
 
+## ✅ Prerequisites
+- Python 3.9–3.11
+- Recommended: TensorFlow 2.15+ (for `.h5` model compatibility)
+
+Install the required packages:
+
+```bash
+pip install streamlit pandas numpy plotly joblib scikit-learn tensorflow
 ```
-OTDR_IBM/
-  ├─ Optic_Fibre_Fault_Pred-Localization/
-  │   └─ otdr_dashboardv2.py
-  └─ README.md
+
+If you prefer a virtual environment:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate   # on macOS/Linux
+.venv\Scripts\activate # on Windows
+pip install streamlit pandas numpy plotly joblib scikit-learn tensorflow
 ```
 
----
-
-### Requirements and Versions
-
-- Preferred runtime: Python 3.11 for this project
-- Key libraries: TensorFlow 2.15.x, NumPy < 2.0, scikit-learn, Streamlit, Pandas, Plotly, Joblib, h5py, protobuf
-
-Important: TensorFlow 2.15.x does not support Python 3.13 yet. If you install Python 3.13 for other work, keep a separate Python 3.11 virtual environment for this app.
-
----
-
-### Quickstart (Windows, PowerShell)
-
-1. Install Python
-
-- Latest (typically 3.13.x):
+## 🚀 Run the App
+Windows PowerShell:
 
 ```powershell
-winget install -e --id Python.Python.3 --source winget --accept-package-agreements --accept-source-agreements --silent
+cd "C:\Users\abhay\OneDrive\Desktop\IBMfinal"
+py -m streamlit run otdr_dashboardv2.py
 ```
 
-- Python 3.11 for this project:
+Or generic Python:
 
-```powershell
-winget install -e --id Python.Python.3.11 --source winget --accept-package-agreements --accept-source-agreements --silent
+```bash
+streamlit run otdr_dashboardv2.py
 ```
 
-2. Create and activate a virtual environment (3.11)
+## 📥 Data Format (CSV)
+Required columns:
+- `SNR`
+- `P1` … `P30` (30 OTDR trace points)
 
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip setuptools wheel
+Optional columns (if available in your dataset):
+- `Class` (0–7)
+- `Position` (0.00–0.30 normalized)
+- `Reflectance`, `Loss` (normalized)
+
+Example (header):
+
+```
+SNR,P1,P2,...,P30,Class,Position,Reflectance,Loss
 ```
 
-3. Install dependencies
+## 🖥️ Using the Dashboard
+1. Models are auto-loaded from `models/` at startup.
+2. Choose an input method:
+   - Upload CSV dataset
+   - Enter a single sample via form
+   - Generate a sample OTDR trace
+3. Run Binary Fault Detection.
+4. If a fault is detected, run Detailed Analysis to get:
+   - Fault class, predicted position, reflectance, loss
+   - Interactive trace highlighting the predicted fault location
+   - Summary cards and research-style report
+5. Export results as CSV via quick-download or the Export tab.
 
-```powershell
-python -m pip install --only-binary=:all: "numpy<2" "tensorflow==2.15.1" "h5py>=3.9,<4" "scikit-learn==1.6.1" "protobuf>=3.20.3,<5" streamlit pandas plotly joblib
+## 📊 Visualizations
+- OTDR Trace with Predicted Fault Position (interactive line+markers)
+- Residual/Error Distribution (histogram)
+- Model Performance (accuracy, precision, recall, F1) as metrics + bar chart
+- Optional 3D OTDR trace (position vs value vs time index)
+
+Prediction-to-position mapping:
+- Model output for position is normalized (0.00–0.30 in 0.01 steps)
+- Mapped as: `pX` where `X = int(prediction * 100)`
+  - Example: `0.06 → p6`
+
+## 🧪 Notes on Models & Compatibility
+- Keras `.h5` models are loaded with `compile=False`; ensure TensorFlow 2.15+ if possible.
+- If you trained with normalization, ensure your `scaler.pkl` is the same one used during training.
+- If loading fails, the app will display model-specific error messages in the sidebar.
+
+## 🧭 Project Structure
+```
+IBMfinal/
+├─ otdr_dashboardv2.py
+├─ models/
+│  ├─ scaler.pkl
+│  ├─ binary_model.h5
+│  ├─ multiclass_model.h5
+│  ├─ position_model.pkl
+│  ├─ reflectance_model.pkl
+│  └─ loss_model.pkl
+└─ README.md
 ```
 
-If your saved `StandardScaler` (or other sklearn model) was created with a different scikit-learn version, pin to that exact version to avoid version warnings.
+## 🆘 Troubleshooting
+- Error: “Required model file '…' not found”
+  - Ensure the file exists in `models/` with the exact filename.
+- TensorFlow/Keras load errors
+  - Re-save the model with your current TF/Keras version.
+  - Consider exporting in SavedModel format if you have access to training code.
+- Poor predictions
+  - Verify dataset column names and scales (SNR, P1–P30).
+  - Ensure the same scaler used in training is provided (`scaler.pkl`).
 
-4. Run the app
+## 🤝 Contributing
+Issues and PRs are welcome! If you add support for new model formats or better visualizations, please include clear instructions and sample files.
 
-```powershell
-streamlit run Optic_Fibre_Fault_Pred-Localization/otdr_dashboardv2.py
-```
+## 📄 License
+MIT License (or your preferred license). Update this section accordingly.
 
 ---
+Built with Streamlit, Plotly, TensorFlow, and scikit-learn. Designed for practical OTDR fault analysis with clean, modern UX.
 
-### Using the Dashboard
 
-1. Launch the app (above).
-2. In the sidebar, upload:
-   - Feature scaler (`.pkl` or `.joblib`) used during training (recommended)
-   - Models: Binary (required), Class/Position/Reflectance/Loss (optional)
-3. Provide data (left column): upload CSV, enter a single sample, or generate a sample.
-4. Run analysis (right column): Binary first; if fault is detected, run Detailed Analysis.
-5. Export results as CSV.
-
----
-
-### Data Format (CSV)
-
-- Required columns:
-  - `SNR`
-  - `P1` … `P30` (30 OTDR trace points)
-- Optional columns (for comparison and visuals):
-  - `Class` (0–7)
-  - `Position` (0–1 normalized)
-  - `Reflectance`, `Loss`
-
-The app includes multiple parsing strategies and a simple cleaning flow for problematic rows.
-
----
-
-### Models
-
-- Supported: `.pkl`, `.joblib` (scikit-learn), `.h5` (Keras/TensorFlow)
-- Binary model input: 31 features (1 `SNR` + 30 `P` points) or 30 features (only `P` points)
-- Keras `.h5` loader includes compatibility fallbacks for older models (e.g., `InputLayer` `batch_shape`).
-
-Tip: For best compatibility, re-save Keras models with your current TensorFlow/Keras and `compile=False` for inference.
-
----
-
-### Troubleshooting
-
-- Excess TensorFlow logs: The app suppresses TF INFO/WARNING logs and disables oneDNN notices.
-- scikit-learn version warning: Install the exact sklearn version used to pickle your scaler/model.
-- `.h5` model fails to load: The app auto-applies fixes; if it still fails, re-save with current TF/Keras or export weights.
-- CPU-only note: Windows wheel is CPU-optimized. GPU requires a CUDA/CuDNN-compatible TF; this project assumes CPU.
-- Python 3.13: Use a separate 3.11 venv for this project until TF supports 3.13.
-
----
-
-### Useful Commands
-
-Check Python installations:
-
-```powershell
-py -0p
-py -3.11 --version
-py -3.13 --version
-```
-
-Create venvs:
-
-```powershell
-py -3.11 -m venv .venv
-py -3.13 -m venv .venv313
-```
-
-Activate on PowerShell:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-Deactivate:
-
-```powershell
-deactivate
-```
-
----
-
-### License
-
-No license provided. Add one if you plan to distribute.
-
----
-
-### Acknowledgements
-
-Built with Streamlit, TensorFlow/Keras, scikit-learn, Pandas, Plotly, and Joblib.
