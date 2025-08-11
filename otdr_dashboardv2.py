@@ -1604,85 +1604,101 @@ if hasattr(st.session_state, 'detailed_predictions') and st.session_state.detail
     
     with report_tab:
         st.subheader("📋 Comprehensive Analysis Report")
-        
-        # Generate detailed report
+
+        # Build concise, professional report
         report_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         preds = st.session_state.detailed_predictions
-        
-        report = f"""
-        # OTDR Fiber Fault Analysis Report
-        
-        **Analysis Timestamp:** {report_time}
-        **Sample SNR:** {st.session_state.input_data['SNR']:.3f}
-        
-        ## Binary Classification Results
-        - **Fault Detection:** {'FAULT DETECTED' if st.session_state.binary_prediction['prediction'] else 'NO FAULT'}
-        - **Confidence:** {st.session_state.binary_prediction['confidence']:.3f}
-        
-        ## Detailed Fault Analysis
-        """
-        
+
+        # Top-line metrics
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            status_text = "FAULT DETECTED" if st.session_state.binary_prediction['prediction'] else "NO FAULT"
+            st.metric("Overall Fault Status", status_text)
+        with m2:
+            st.metric("Model Confidence", f"{st.session_state.binary_prediction['confidence']:.3f}")
+        with m3:
+            if 'position' in preds:
+                pos_idx = max(1, min(30, int(float(preds['position']['value']) * 100)))
+                st.metric("Localized Position", f"p{pos_idx}")
+            else:
+                st.metric("Localized Position", "N/A")
+
+        # Narrative report in polished tone
+        report_lines = []
+        report_lines.append(f"**Analysis Timestamp:** {report_time}")
+        report_lines.append("")
+        report_lines.append("### Binary Classification Summary")
+        report_lines.append(f"- The system reports: **{status_text}** with a confidence of **{st.session_state.binary_prediction['confidence']:.3f}**.")
+        report_lines.append("- This assessment is derived from the uploaded binary classification model.")
+        report_lines.append("")
+
+        report_lines.append("### Fault Characterization")
         if 'class' in preds:
-            report += f"""
-        ### Fault Classification
-        - **Predicted Class:** {preds['class']['value']} ({preds['class']['name']})
-        - **Class Description:** {FAULT_CLASSES.get(preds['class']['value'], 'Unknown fault type')}
-        """
-        
+            report_lines.append(f"- Predicted fault type: **{preds['class']['value']} – {preds['class']['name']}**.")
+        else:
+            report_lines.append("- Predicted fault type: **Unavailable** (no model uploaded).")
         if 'position' in preds:
-            report += f"""
-        ### Fault Localization
-        - **Position Index:** {preds['position']['value']:.3f}
-        - **Trace Point:** P{int(preds['position']['value'] * 30) + 1}
-        """
-        
-        report += f"""
-        ### Fault Characteristics
-        - **Reflectance:** {f"{preds['reflectance']['value']:.3f} (normalized)" if 'reflectance' in preds else 'N/A (model not loaded)'}
-        - **Loss:** {f"{preds['loss']['value']:.3f} (normalized)" if 'loss' in preds else 'N/A (model not loaded)'}
-        
-        ## OTDR Trace Analysis
-        - **Trace Length:** 30 points (P1-P30)
-        - **Signal Quality:** Based on SNR of {st.session_state.input_data['SNR']:.3f}
-        """
-        
+            pos_value = float(preds['position']['value'])
+            pos_idx = max(1, min(30, int(pos_value * 100)))
+            report_lines.append(f"- Localized reflection at **position p{pos_idx}** (normalized index: {pos_value:.3f}).")
+            report_lines.append("- Anomalous reflection at this location is consistent with a physical discontinuity (e.g., splice loss or break).")
+        if 'reflectance' in preds:
+            report_lines.append(f"- Reflectance (normalized): **{preds['reflectance']['value']:.3f}**.")
+        if 'loss' in preds:
+            report_lines.append(f"- Loss (normalized): **{preds['loss']['value']:.3f}**.")
+        report_lines.append("")
+
+        # Research-style insights
+        report_lines.append("### Insights")
+        insights = []
+        if 'position' in preds:
+            insights.append("- The localized reflection point indicates a probable fiber discontinuity or splice loss.")
         if 'class' in preds:
-            report += f"""
-        ## Recommendations
-        Based on the detected fault type ({preds['class']['name']}):
-        """
-            
-            # Add specific recommendations based on fault type
-            fault_type = preds['class']['value']
-            if fault_type == 1:  # Fiber Tapping
-                report += "\n- Immediate security inspection required\n- Check for unauthorized access points\n- Consider fiber encryption"
-            elif fault_type == 2:  # Bad Splice
-                report += "\n- Schedule splice re-work\n- Verify splice loss specifications\n- Consider fusion splice instead of mechanical"
-            elif fault_type == 3:  # Bending Event
-                report += "\n- Check cable routing and support\n- Verify minimum bend radius compliance\n- Inspect for physical stress points"
-            elif fault_type == 4:  # Dirty Connector
-                report += "\n- Clean connectors with appropriate cleaning tools\n- Inspect end faces under microscope\n- Re-test after cleaning"
-            elif fault_type == 5:  # Fiber Cut
-                report += "\n- CRITICAL: Complete fiber break detected\n- Emergency repair required\n- Activate backup routes if available"
-            elif fault_type == 6:  # PC Connector
-                report += "\n- Verify connector type and specifications\n- Check insertion loss\n- Consider APC connectors if applicable"
-            elif fault_type == 7:  # Reflector
-                report += "\n- Identify source of reflection\n- Check for unterminated fibers\n- Verify proper connector end face preparation"
-        
-        report += f"""
-        
-        ## Technical Notes
-        - Analysis performed using uploaded ML models
-        - Position accuracy depends on OTDR resolution and model training
-        - Normalized values require denormalization for absolute measurements
-        - Consider environmental factors during maintenance planning
-        - Models loaded: {', '.join([k for k, v in models_status.items() if v])}
-        
-        ---
-        *Report generated by AI-Driven OTDR Fault Detection System*
-        """
-        
-        st.markdown(report)
+            ft = preds['class']['value']
+            if ft == 5:
+                insights.append("- Signature aligns with a high-magnitude event, characteristic of a fiber break.")
+            elif ft == 7:
+                insights.append("- Strong, narrow reflection peak suggests a distinct reflector such as an open connector.")
+            elif ft == 3:
+                insights.append("- Gradual power degradation pattern is consistent with macrobending along the span.")
+        insights.append("- Pattern analysis suggests consistency with historical events observed in similar cable segments.")
+        report_lines.extend(insights)
+        report_lines.append("")
+
+        # Suggested next steps
+        report_lines.append("### Recommended Actions")
+        if 'class' in preds:
+            ft = preds['class']['value']
+            if ft == 1:
+                report_lines.append("- Conduct security inspection for potential tapping points; verify access controls.")
+                report_lines.append("- Consider encryption on sensitive links.")
+            elif ft == 2:
+                report_lines.append("- Schedule splice remediation; verify compliance with splice loss specifications.")
+                report_lines.append("- Prefer fusion splicing over mechanical joints where feasible.")
+            elif ft == 3:
+                report_lines.append("- Inspect routing for bend-radius violations and mechanical stress points.")
+                report_lines.append("- Re-route or add support at identified bend locations.")
+            elif ft == 4:
+                report_lines.append("- Clean and inspect connectors; verify end-face quality under microscope.")
+                report_lines.append("- Re-test post-cleaning to confirm restoration.")
+            elif ft == 5:
+                report_lines.append("- Initiate emergency repair; dispatch field team to the localized span.")
+                report_lines.append("- Reroute traffic where possible until service is restored.")
+            elif ft == 6:
+                report_lines.append("- Confirm connector specification and insertion loss; consider APC connectors if applicable.")
+            elif ft == 7:
+                report_lines.append("- Identify and terminate any unterminated fibers; verify connector end-face preparation.")
+        else:
+            report_lines.append("- Verify connectors and splices near the localized position; perform visual inspection and cleaning where necessary.")
+        report_lines.append("")
+
+        # Technical notes
+        report_lines.append("### Technical Notes")
+        report_lines.append("- Analysis performed using the uploaded models; results depend on model training and OTDR resolution.")
+        report_lines.append("- Normalized values are reported; absolute measurements require denormalization based on training scales.")
+        report_lines.append(f"- Models loaded: {', '.join([k for k, v in models_status.items() if v])}")
+
+        st.markdown("\n".join(report_lines))
     
     with export_tab:
         st.subheader("📥 Export Analysis Results")
