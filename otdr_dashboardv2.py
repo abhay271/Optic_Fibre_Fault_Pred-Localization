@@ -1064,21 +1064,7 @@ with col1:
                             st.session_state.input_data = selected_sample
                             st.session_state.otdr_trace = extract_otdr_features(selected_sample)
                             
-                            # Display selected sample info
-                            st.subheader("Selected Sample Info")
-                            st.write(f"**Sample Index:** {sample_idx}")
-                            st.write(f"**SNR:** {selected_sample['SNR']:.3f}")
-                            
-                            # Show first few OTDR points as preview
-                            otdr_preview = [f"P{i}={selected_sample[f'P{i}']:.3f}" for i in range(1, 6)]
-                            st.write(f"**OTDR Preview:** {', '.join(otdr_preview)}...")
-                            
-                            # Show actual labels if available
-                            if 'Class' in selected_sample:
-                                actual_class = int(selected_sample['Class'])
-                                st.write(f"**Actual Class:** {actual_class} ({FAULT_CLASSES.get(actual_class, 'Unknown')})")
-                            if 'Position' in selected_sample:
-                                st.write(f"**Actual Position:** {selected_sample['Position']:.3f}")
+                            # Selected sample info display removed as requested
                         else:
                             st.error("❌ No valid data rows remaining after quality check!")
                 
@@ -1340,8 +1326,7 @@ with col2:
                     if 'position' in preds:
                         st.metric(
                             "Position",
-                            f"{preds['position']['value']:.3f}",
-                            f"~{preds['position']['distance_km']:.1f} km"
+                            f"{preds['position']['value']:.3f}"
                         )
                     else:
                         st.metric("Position", "N/A", "Model not loaded")
@@ -1450,73 +1435,7 @@ with col2:
 if hasattr(st.session_state, 'detailed_predictions') and st.session_state.detailed_predictions is not None:
     st.header("📊 Analysis Results & Performance")
     
-    tab1, tab2, tab3 = st.tabs(["📈 Predictions vs Actual", "📋 Detailed Report", "📥 Export Results"])
-    
-    with tab1:
-        st.subheader("Model Predictions vs Actual Values")
-        
-        # Compare predictions with actual values (if available)
-        if (hasattr(st.session_state, 'input_data') and st.session_state.input_data is not None and 
-            any(col in st.session_state.input_data.index for col in ['Class', 'Position', 'Reflectance', 'Loss'])):
-            
-            comparison_data = []
-            
-            # Class comparison
-            if 'Class' in st.session_state.input_data and 'class' in st.session_state.detailed_predictions:
-                actual_class = int(st.session_state.input_data['Class'])
-                pred_class = st.session_state.detailed_predictions['class']['value']
-                comparison_data.append({
-                    'Metric': 'Fault Class',
-                    'Actual': f"{actual_class} ({FAULT_CLASSES.get(actual_class, 'Unknown')})",
-                    'Predicted': f"{pred_class} ({FAULT_CLASSES.get(pred_class, 'Unknown')})",
-                    'Match': '✅' if actual_class == pred_class else '❌'
-                })
-            
-            # Position comparison
-            if 'Position' in st.session_state.input_data and 'position' in st.session_state.detailed_predictions:
-                actual_pos = st.session_state.input_data['Position']
-                pred_pos = st.session_state.detailed_predictions['position']['value']
-                pos_error = abs(actual_pos - pred_pos)
-                comparison_data.append({
-                    'Metric': 'Position',
-                    'Actual': f"{actual_pos:.3f}",
-                    'Predicted': f"{pred_pos:.3f}",
-                    'Match': f"Error: {pos_error:.3f}"
-                })
-            
-            # Reflectance comparison
-            if ('Reflectance' in st.session_state.input_data and 
-                'reflectance' in st.session_state.detailed_predictions):
-                actual_refl = st.session_state.input_data['Reflectance']
-                pred_refl = st.session_state.detailed_predictions['reflectance']['value']
-                refl_error = abs(actual_refl - pred_refl)
-                comparison_data.append({
-                    'Metric': 'Reflectance',
-                    'Actual': f"{actual_refl:.3f}",
-                    'Predicted': f"{pred_refl:.3f}",
-                    'Match': f"Error: {refl_error:.3f}"
-                })
-            
-            # Loss comparison
-            if ('Loss' in st.session_state.input_data and 
-                'loss' in st.session_state.detailed_predictions):
-                actual_loss = st.session_state.input_data['Loss']
-                pred_loss = st.session_state.detailed_predictions['loss']['value']
-                loss_error = abs(actual_loss - pred_loss)
-                comparison_data.append({
-                    'Metric': 'Loss',
-                    'Actual': f"{actual_loss:.3f}",
-                    'Predicted': f"{pred_loss:.3f}",
-                    'Match': f"Error: {loss_error:.3f}"
-                })
-            
-            if comparison_data:
-                # Table display removed as requested
-                pass
-            else:
-                st.info("No matching actual values available for comparison.")
-        else:
-            st.info("Actual values not available in the input data for comparison.")
+    tab2, tab3 = st.tabs(["📋 Detailed Report", "📥 Export Results"])
     
     with tab2:
         st.subheader("📋 Comprehensive Analysis Report")
